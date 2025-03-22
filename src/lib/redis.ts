@@ -1,11 +1,17 @@
 import Redis from 'ioredis';
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379/0';
-if (!redisUrl) {
-  throw new Error('REDIS_URL environment variable is not set');
-}
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const redis = new Redis(redisUrl, {
+  maxRetriesPerRequest: 5,
+  retryStrategy: (times) => Math.min(times * 50, 2000),
+});
 
-const redis = new Redis(redisUrl);
-redis.on('error', (err) => console.error('Redis Error:', err));
+redis.on('connect', () => console.log('Redis connected'));
+redis.on('error', (err) => console.error('Redis error:', err));
 
 export default redis;
+
+process.on('SIGTERM', async () => {
+  await redis.quit();
+  process.exit(0);
+});

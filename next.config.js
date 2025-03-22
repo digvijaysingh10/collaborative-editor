@@ -1,17 +1,19 @@
+/** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  headers: async () => [
-    {
-      source: '/(.*)',
-      headers: [
-        {
-          key: 'Content-Security-Policy',
-          value:
-            "default-src 'self'; connect-src 'self' ws://y-server-tdnd.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline';",
-        },
-      ],
-    },
-  ],
+  swcMinify: true,
+  productionBrowserSourceMaps: false,
+  async headers() {
+    return [
+      {
+        source: '/api/(.*)',
+        headers: [
+          { key: 'Cache-Control', value: 'no-store' },
+          { key: 'Content-Security-Policy', value: "default-src 'self'; script-src 'self' 'unsafe-inline'" },
+        ],
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

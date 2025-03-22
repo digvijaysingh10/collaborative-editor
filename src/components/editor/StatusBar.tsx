@@ -7,15 +7,28 @@ type StatusBarProps = {
 
 export default function StatusBar({ status, users }: StatusBarProps) {
   return (
-    <div className="flex justify-between items-center p-2 bg-gray-100 text-sm text-gray-600">
-      <div>
-        {status === 'saving' && 'Saving...'}
-        {status === 'saved' && 'Saved'}
-        {status === 'error' && 'Error saving'}
-        {status === 'idle' && 'Ready'}
+    <div className="flex justify-between items-center p-3 bg-gray-50 text-sm text-gray-600 border-t border-gray-200">
+      <div className="flex items-center space-x-2">
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-medium transition-colors duration-300 ${
+            status === 'saving'
+              ? 'bg-blue-100 text-blue-700'
+              : status === 'saved'
+              ? 'bg-green-100 text-green-700'
+              : status === 'error'
+              ? 'bg-red-100 text-red-700'
+              : 'bg-gray-100 text-gray-600'
+          }`}
+        >
+          {status === 'saving' && 'Saving...'}
+          {status === 'saved' && 'Saved'}
+          {status === 'error' && 'Error'}
+          {status === 'idle' && 'Ready'}
+        </span>
       </div>
-      <div>
-        Connected Users: {users.length} ({users.join(', ')})
+      <div className="flex items-center space-x-2">
+        <span className="font-medium">Users:</span>
+        <span className="text-gray-700">{users.length} ({users.join(', ')})</span>
       </div>
     </div>
   );

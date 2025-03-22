@@ -18,32 +18,102 @@ export function useEditor() {
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [users, setUsers] = useState<string[]>([]);
 
+  const saveToBackend = async (isManual = false) => {
+    const content = quillRef.current?.getText() || '';
+    if (!content.trim()) {
+      console.log('No content to save');
+      return;
+    }
+    console.log('Saving content:', content); // Debug log
+    setStatus('saving');
+    try {
+      const res = await fetch('/api/document', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+      const responseData = await res.json();
+      console.log('API response:', responseData); // Debug log
+      if (!res.ok) throw new Error(responseData.error || 'Failed to save');
+      setStatus('saved');
+      setTimeout(() => setStatus('idle'), isManual ? 3000 : 1500);
+    } catch (err) {
+      console.error('Save error:', err);
+      setStatus('error');
+    }
+  };
+
+  const handleManualSave = () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveToBackend(true);
+  };
+
   useEffect(() => {
     const ydoc = new Y.Doc();
     const ytext = ydoc.getText('quill');
     providerRef.current = createYjsProvider(ydoc);
 
-    if (editorRef.current) {
+    if (editorRef.current && !quillRef.current) {
+      const Font = Quill.import('formats/font');
+      Font.whitelist = ['inter', 'roboto', 'open-sans', 'lora', 'sans-serif'];
+      Quill.register(Font, true);
+
       quillRef.current = new Quill(editorRef.current, {
         theme: 'snow',
         placeholder: 'Start typing here...',
         modules: {
-          toolbar: [
-            [{ header: [1, 2, 3, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            ['link', 'image'],
-            [{ align: [] }],
-            ['clean'],
-          ],
-          cursors: {
-            transformOnTextChange: true,
+          toolbar: {
+            container: [
+              [{ header: [1, 2, 3, false] }],
+              [{ font: ['inter', 'roboto', 'open-sans', 'lora', 'sans-serif'] }],
+              ['bold', 'italic', 'underline', 'strike'],
+              [{ list: 'ordered' }, { list: 'bullet' }],
+              ['link'],
+              [{ align: [] }],
+              ['clean'],
+            ],
+            handlers: {
+              font: function (value: string) {
+                if (quillRef.current) {
+                  quillRef.current.format('font', value || false);
+                }
+              },
+              link: function (value: string | boolean) {
+                if (!quillRef.current) return;
+
+                const range = quillRef.current.getSelection(true); // Force a selection
+                if (range && range.length === 0) {
+                  const index = range.index;
+                  const [leaf] = quillRef.current.getLeaf(index); // Fixed: Pass index
+                  const text = leaf.text || '';
+                  const offset = index - quillRef.current.getIndex(leaf); // Fixed: Pass leaf
+                  const wordBounds = getWordBounds(text, offset);
+                  const start = index - offset + wordBounds.start;
+                  const length = wordBounds.end - wordBounds.start;
+
+                  if (length > 0) {
+                    quillRef.current.setSelection(start, length);
+                  }
+                }
+
+                if (value === true) {
+                  // Access tooltip via toolbar module
+                  const tooltip = (quillRef.current.getModule('toolbar') as any).tooltip;
+                  if (tooltip) {
+                    tooltip.edit('link');
+                  } else {
+                    console.error('Tooltip not found');
+                  }
+                } else if (typeof value === 'string') {
+                  quillRef.current.format('link', value);
+                } else {
+                  quillRef.current.format('link', false);
+                }
+              },
+            },
           },
-          history: {
-            delay: 1000,
-            maxStack: 100,
-            userOnly: true,
-          },
+          cursors: { transformOnTextChange: true },
+          history: { delay: 1000, maxStack: 100, userOnly: true },
         },
       });
     }
@@ -51,7 +121,10 @@ export function useEditor() {
     const binding = new QuillBinding(ytext, quillRef.current!);
 
     fetch('/api/document')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch');
+        return res.json();
+      })
       .then((data: { content?: string }) => {
         if (data.content && ytext.length === 0) {
           ytext.insert(0, data.content);
@@ -62,46 +135,40 @@ export function useEditor() {
         setStatus('error');
       });
 
-    const saveToBackend = async () => {
-      const content = ytext.toString();
-      setStatus('saving');
-      try {
-        const res = await fetch('/api/document', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content }),
-        });
-        if (!res.ok) throw new Error('Failed to save');
-        setStatus('saved');
-        setTimeout(() => setStatus('idle'), 2000);
-      } catch (err) {
-        console.error('Failed to save document:', err);
-        setStatus('error');
-      }
-    };
-
     ytext.observe(() => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = setTimeout(saveToBackend, 2000);
+      saveTimeoutRef.current = setTimeout(() => saveToBackend(false), 1000);
     });
 
     providerRef.current?.awareness.on('change', () => {
       const states = providerRef.current?.awareness.getStates();
-      const userNames = Array.from(states?.values() || []).map((state: any) => state.user?.name || 'Anonymous');
-      setUsers(Array.from(new Set(userNames)));
+      const userNames = Array.from(states?.values() || [])
+        .map((state: any) => state.user?.name || 'Anonymous')
+        .filter((name, idx, self) => self.indexOf(name) === idx);
+      setUsers(userNames);
     });
 
+    const userName = `User-${Math.random().toString(36).substring(2, 8)}`;
     providerRef.current?.awareness.setLocalStateField('user', {
-      name: `User-${Math.floor(Math.random() * 1000)}`,
-      color: `#${Math.floor(Math.random() * 16777215).toString(16)}`,
+      name: userName,
+      color: `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`,
     });
 
     return () => {
-      providerRef.current?.disconnect();
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      providerRef.current?.destroy();
       binding.destroy();
+      ydoc.destroy();
     };
   }, []);
 
-  return { editorRef, status, users };
+  return { editorRef, status, users, handleManualSave };
+}
+
+function getWordBounds(text: string, offset: number): { start: number; end: number } {
+  const left = text.slice(0, offset).search(/\S+$/);
+  const right = text.slice(offset).search(/\s/);
+  const start = left < 0 ? 0 : left;
+  const end = right < 0 ? text.length : offset + right;
+  return { start, end };
 }
