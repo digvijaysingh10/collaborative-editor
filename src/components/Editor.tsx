@@ -24,7 +24,10 @@ export default function Editor() {
     if (editorRef.current) {
       quillRef.current = new Quill(editorRef.current, {
         theme: 'snow',
-        modules: { toolbar: true, cursors: true },
+        modules: {
+          toolbar: [['bold', 'italic', 'underline'], ['link']],
+          cursors: true,
+        },
       });
     }
 
@@ -42,11 +45,12 @@ export default function Editor() {
     const saveToBackend = async () => {
       const content = ytext.toString();
       try {
-        await fetch('/api/document', {
+        const res = await fetch('/api/document', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content }),
         });
+        if (!res.ok) throw new Error('Failed to save');
       } catch (err) {
         console.error('Failed to save document:', err);
       }

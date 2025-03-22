@@ -6,10 +6,7 @@ export async function GET() {
   try {
     const cached = await redis.get('doc:1');
     if (cached) {
-      return new Response(JSON.stringify({ content: cached }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return Response.json({ content: cached }, { status: 200 });
     }
 
     const db = await getDb();
@@ -18,15 +15,10 @@ export async function GET() {
     const content = doc?.content || '';
     await redis.set('doc:1', content);
 
-    return new Response(JSON.stringify({ content }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return Response.json({ content }, { status: 200 });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('GET /api/document error:', error);
+    return Response.json({ error: 'Server error' }, { status: 500 });
   } finally {
     await closeDb();
   }
@@ -45,15 +37,10 @@ export async function POST(request: NextRequest) {
     );
     await redis.set('doc:1', content);
 
-    return new Response(JSON.stringify({ message: 'Saved' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return Response.json({ message: 'Saved' }, { status: 200 });
   } catch (error) {
-    return new Response(JSON.stringify({ error: 'Server error' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    console.error('POST /api/document error:', error);
+    return Response.json({ error: 'Server error' }, { status: 500 });
   } finally {
     await closeDb();
   }
