@@ -52,7 +52,7 @@ Update `REDIS_URL` for your **Redis setup**.
 ```sh
 npm run dev
 ```
-Visit 👉 **[http://localhost:3000](http://localhost:3000)**
+Visit 👉 **[collaborative-editor-dj10.vercel.app](collaborative-editor-dj10.vercel.app)**
 
 ### 5️⃣ Build for Production
 ```sh
