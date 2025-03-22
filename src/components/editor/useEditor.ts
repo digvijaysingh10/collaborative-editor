@@ -7,6 +7,9 @@ import QuillCursors from 'quill-cursors';
 import * as Y from 'yjs';
 import { QuillBinding } from 'y-quill';
 import { createYjsProvider } from '@/lib/yjs-config';
+import { Packer, Document, Paragraph } from 'docx';
+import { saveAs } from 'file-saver';
+import jsPDF from 'jspdf';
 
 Quill.register('modules/cursors', QuillCursors);
 
@@ -24,7 +27,7 @@ export function useEditor() {
       console.log('No content to save');
       return;
     }
-    console.log('Saving content:', content); // Debug log
+    console.log('Saving content:', content);
     setStatus('saving');
     try {
       const res = await fetch('/api/document', {
@@ -33,7 +36,7 @@ export function useEditor() {
         body: JSON.stringify({ content }),
       });
       const responseData = await res.json();
-      console.log('API response:', responseData); // Debug log
+      console.log('API response:', responseData);
       if (!res.ok) throw new Error(responseData.error || 'Failed to save');
       setStatus('saved');
       setTimeout(() => setStatus('idle'), isManual ? 3000 : 1500);
@@ -46,6 +49,33 @@ export function useEditor() {
   const handleManualSave = () => {
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveToBackend(true);
+  };
+
+  const saveAsWord = () => {
+    if (!quillRef.current) return;
+    const content = quillRef.current.getText();
+    const doc = new Document({
+      sections: [
+        {
+          properties: {},
+          children: [new Paragraph(content)],
+        },
+      ],
+    });
+
+    Packer.toBlob(doc).then((blob) => {
+      saveAs(blob, 'document.docx');
+    }).catch((err) => {
+      console.error('Error generating Word document:', err);
+    });
+  };
+
+  const saveAsPDF = () => {
+    if (!quillRef.current) return;
+    const content = quillRef.current.getText();
+    const doc = new jsPDF();
+    doc.text(content, 10, 10);
+    doc.save('document.pdf');
   };
 
   useEffect(() => {
@@ -81,12 +111,12 @@ export function useEditor() {
               link: function (value: string | boolean) {
                 if (!quillRef.current) return;
 
-                const range = quillRef.current.getSelection(true); // Force a selection
+                const range = quillRef.current.getSelection(true);
                 if (range && range.length === 0) {
                   const index = range.index;
-                  const [leaf] = quillRef.current.getLeaf(index); // Fixed: Pass index
+                  const [leaf] = quillRef.current.getLeaf(index);
                   const text = leaf.text || '';
-                  const offset = index - quillRef.current.getIndex(leaf); // Fixed: Pass leaf
+                  const offset = index - quillRef.current.getIndex(leaf);
                   const wordBounds = getWordBounds(text, offset);
                   const start = index - offset + wordBounds.start;
                   const length = wordBounds.end - wordBounds.start;
@@ -97,7 +127,6 @@ export function useEditor() {
                 }
 
                 if (value === true) {
-                  // Access tooltip via toolbar module
                   const tooltip = (quillRef.current.getModule('toolbar') as any).tooltip;
                   if (tooltip) {
                     tooltip.edit('link');
@@ -162,7 +191,7 @@ export function useEditor() {
     };
   }, []);
 
-  return { editorRef, status, users, handleManualSave };
+  return { editorRef, status, users, handleManualSave, saveAsWord, saveAsPDF };
 }
 
 function getWordBounds(text: string, offset: number): { start: number; end: number } {
