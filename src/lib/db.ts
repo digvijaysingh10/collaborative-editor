@@ -1,6 +1,6 @@
 import { MongoClient, Db } from 'mongodb';
 
-const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017';
+const mongoUri = process.env.MONGO_URI || 'mongodb+srv://singhdigvijay703:<db_password>@editordb.prmdl.mongodb.net/?retryWrites=true&w=majority&appName=editorDB';
 if (!mongoUri) {
   throw new Error('MONGO_URI environment variable is not set');
 }

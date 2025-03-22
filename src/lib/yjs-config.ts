@@ -2,7 +2,7 @@ import { WebsocketProvider } from 'y-websocket';
 import * as Y from 'yjs';
 
 export function createYjsProvider(ydoc: Y.Doc, room: string = 'doc-room'): WebsocketProvider {
-  const wsUrl = process.env.YJS_WS_URL;
+  const wsUrl = process.env.YJS_WS_URL || 'ws://y-server-tdnd.onrender.com';;
   if (!wsUrl) {
     throw new Error('YJS_WS_URL environment variable is not set');
   }
