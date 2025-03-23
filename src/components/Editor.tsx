@@ -1,7 +1,11 @@
-"use client";
+'use client';
 
-import EditorContainer from "./editor/EditorContainer";
+import EditorContainer from './editor/EditorContainer';
 
-export default function Editor() {
-  return <EditorContainer />;
+type EditorProps = {
+  docId: string;
+};
+
+export default function Editor({ docId }: EditorProps) {
+  return <EditorContainer docId={docId} />;
 }

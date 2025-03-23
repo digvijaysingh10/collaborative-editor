@@ -2,19 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&family=Lora:wght@400;700&display=swap');
+
 :root {
   --font-inter: 'Inter', sans-serif;
   --font-roboto: 'Roboto', sans-serif;
   --font-open-sans: 'Open Sans', sans-serif;
-  --font-lora: 'Lora', serif;
+  --font-lora: 'Lora', sans-serif;
+}
+
+html {
+  font-family: var(--font-inter);
 }
 
 body {
-  @apply bg-gray-100 text-gray-900 font-sans antialiased;
+  @apply antialiased;
 }
 
 .ql-toolbar.ql-snow {
-  @apply bg-gray-50 border border-gray-200 p-2 flex flex-wrap gap-2;
+  @apply bg-gray-50 border border-gray-200 p-2 flex flex-wrap gap-2 justify-center md:justify-start;
 }
 
 .ql-toolbar.ql-snow .ql-formats {
@@ -23,45 +29,47 @@ body {
 
 .ql-toolbar.ql-snow button,
 .ql-toolbar.ql-snow .ql-picker {
-  @apply  rounded hover:bg-gray-200 transition-colors duration-150;
+  @apply rounded hover:bg-gray-200 transition-colors duration-150 p-1 md:p-2;
 }
 
 .ql-toolbar.ql-snow .ql-picker-label {
-  @apply text-gray-700 font-medium;
+  @apply text-gray-700 font-medium text-sm md:text-base;
 }
 
 .ql-toolbar.ql-snow .ql-picker-options {
-  @apply bg-white border border-gray-200 rounded shadow-md p-1 mt-1;
-}
-
-.ql-container.ql-snow {
-  @apply border border-gray-200 rounded-b-lg bg-white;
-}
-
-.ql-editor {
-  @apply text-gray-800 leading-relaxed;
+  @apply bg-white border border-gray-200 rounded shadow-md p-1 mt-1 text-sm;
 }
 
 .ql-snow .ql-tooltip {
-  @apply bg-gray-50 border border-gray-200 p-1 left-1/2 transform translate-x-1/2;
+  @apply bg-gray-50 border border-gray-200 p-1 left-1/2 transform -translate-x-1/2;
 }
 
-.ql-font-inter {
-  font-family: 'Inter', sans-serif;
+.ql-editor {
+  @apply min-h-[300px] md:min-h-[500px] p-2 md:p-4 text-gray-800 focus:outline-none w-full;
 }
 
-.ql-font-roboto {
-  font-family: 'Roboto', sans-serif;
+.ql-font-picker {
+  @apply rounded border border-gray-300 bg-white text-gray-800 hover:bg-gray-100 transition-colors text-sm md:text-base;
+  min-width: 100px;
+  max-width: 150px;
 }
 
-.ql-font-open-sans {
-  font-family: 'Open Sans', sans-serif;
+.ql-editor span.ql-font-inter {
+  font-family: var(--font-inter) !important;
 }
 
-.ql-font-lora {
-  font-family: 'Lora', serif;
+.ql-editor span.ql-font-roboto {
+  font-family: var(--font-roboto) !important;
 }
 
-.ql-font-sans-serif {
-  font-family: sans-serif;
+.ql-editor span.ql-font-open-sans {
+  font-family: var(--font-open-sans) !important;
+}
+
+.ql-editor span.ql-font-lora {
+  font-family: var(--font-lora) !important;
+}
+
+.ql-editor span.ql-font-sans-serif {
+  font-family: sans-serif !important;
 }

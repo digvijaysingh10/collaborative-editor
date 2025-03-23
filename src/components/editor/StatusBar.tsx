@@ -10,9 +10,9 @@ export default function StatusBar({ status, users }: StatusBarProps) {
     <div className="flex justify-between items-center p-3 bg-gray-50 text-sm text-gray-600 border-t border-gray-200">
       <div className="flex items-center space-x-2">
         <span
-          className={`px-2 py-1 rounded-full text-xs font-medium transition-colors duration-300 ${
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-300 ${
             status === 'saving'
-              ? 'bg-blue-100 text-blue-700'
+              ? 'bg-blue-100 text-blue-700 animate-pulse'
               : status === 'saved'
               ? 'bg-green-100 text-green-700'
               : status === 'error'
@@ -27,8 +27,10 @@ export default function StatusBar({ status, users }: StatusBarProps) {
         </span>
       </div>
       <div className="flex items-center space-x-2">
-        <span className="font-medium">Users:</span>
-        <span className="text-gray-700">{users.length} ({users.join(', ')})</span>
+        <span className="font-medium text-gray-700">Collaborators:</span>
+        <span className="text-gray-800 font-semibold">
+          {users.length} {users.length > 0 && `(${users.join(', ')})`}
+        </span>
       </div>
     </div>
   );

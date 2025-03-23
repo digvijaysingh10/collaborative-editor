@@ -14,7 +14,7 @@ export function createYjsProvider(ydoc: Y.Doc, room: string = 'doc-room'): Webso
   });
 
   provider.on('status', ({ status }: { status: string }) => {
-    console.log(`Yjs WebSocket status: ${status}`);
+    console.log(`Yjs WebSocket status for room ${room}: ${status}`);
   });
 
   return provider;
