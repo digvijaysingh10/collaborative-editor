@@ -1,28 +1,28 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import DocumentList from '@/components/DocumentList';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, Suspense } from "react";
+import dynamic from "next/dynamic";
+import DocumentList from "@/components/DocumentList";
+import { useSearchParams } from "next/navigation";
 
-const Editor = dynamic(() => import('@/components/Editor'), { ssr: false });
+const Editor = dynamic(() => import("@/components/Editor"), { ssr: false });
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams();
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   useEffect(() => {
-    const docId = searchParams.get('docId');
+    const docId = searchParams.get("docId");
     if (docId && docId !== selectedDocId) setSelectedDocId(docId);
   }, [searchParams]);
 
   const handleNewDocument = async () => {
     const newDocId = crypto.randomUUID();
-    const res = await fetch('/api/document', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: '', id: newDocId }),
+    const res = await fetch("/api/document", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "", id: newDocId }),
     });
     if (res.ok) setSelectedDocId(newDocId);
   };
@@ -33,11 +33,11 @@ export default function Home() {
         className="md:hidden mb-4 p-2 bg-blue-500 text-white rounded-lg"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
       >
-        {isSidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+        {isSidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
       </button>
       <div
         className={`${
-          isSidebarOpen ? 'block' : 'hidden'
+          isSidebarOpen ? "block" : "hidden"
         } md:block w-full md:w-80 flex-shrink-0 mb-4 md:mb-0`}
       >
         <DocumentList onSelect={setSelectedDocId} onNewDocument={handleNewDocument} />
@@ -52,5 +52,13 @@ export default function Home() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <HomeContent />
+    </Suspense>
   );
 }
