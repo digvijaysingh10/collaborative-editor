@@ -94,8 +94,11 @@ export function useEditor(docId: string) {
         setStatus('error');
       });
 
-    ytext.observe(() => {
-      // console.log('Yjs content updated:', ytext.toString());
+    ytext.observe((event) => {
+      if (!event.transaction.local && quillRef.current) {
+        const textLength = quillRef.current.getLength();
+        quillRef.current.setSelection(textLength - 1, 0);
+      }
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => saveToBackend(), 1000);
     });
