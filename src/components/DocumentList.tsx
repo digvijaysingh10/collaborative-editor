@@ -19,8 +19,6 @@ export default function DocumentList({ onSelect, onNewDocument }: DocumentListPr
 
   useEffect(() => {
     fetchDocuments();
-    const interval = setInterval(fetchDocuments, 2000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleRename = async (id: string) => {

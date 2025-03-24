@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     }
 
     const db = await getDb();
-    const collection = db.collection('documents'); // Fixed typo: '_documents' -> 'documents'
+    const collection = db.collection('documents');
     const countersCollection = db.collection<CounterDocument>('counters');
     const updatedAt = new Date();
 
@@ -43,7 +43,6 @@ export async function POST(request: NextRequest) {
       docId = id;
       const existingDoc = await collection.findOne({ id });
       if (!existingDoc && content === '') {
-        // New document with provided ID
         const counter = await countersCollection.findOneAndUpdate(
           { _id: 'docIndex' },
           { $inc: { seq: 1 } },
@@ -67,6 +66,7 @@ export async function POST(request: NextRequest) {
       docTitle = title || `doc-${index}`;
     }
 
+    console.log(`Saving document ${docId}:`, { content, title: docTitle });
     await collection.updateOne(
       { id: docId },
       { $set: { content, updatedAt, title: docTitle } },

@@ -10,6 +10,7 @@ import { createYjsProvider } from '@/lib/yjs-config';
 import { Packer, Document, Paragraph } from 'docx';
 import { saveAs } from 'file-saver';
 import jsPDF from 'jspdf';
+import { debounce } from 'lodash';
 
 Quill.register('modules/cursors', QuillCursors);
 
@@ -17,13 +18,25 @@ export function useEditor(docId: string) {
   const editorRef = useRef<HTMLDivElement>(null);
   const quillRef = useRef<Quill | null>(null);
   const providerRef = useRef<ReturnType<typeof createYjsProvider> | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const bindingRef = useRef<QuillBinding | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [users, setUsers] = useState<string[]>([]);
+  const lastSavedContentRef = useRef<string>('');
+  const isInitialLoadRef = useRef(true);
+  const isSavingRef = useRef(false);
+  const hasTypedRef = useRef(false); // Track if user has typed
 
   const saveToBackend = async (isManual = false) => {
-    const content = quillRef.current?.getText().trim();
+    if (isSavingRef.current) return;
+    const content = quillRef.current?.getText().trim() || '';
+    console.log(`Preparing to save content for ${docId}:`, content);
     if (!content && !isManual) return;
+    if (content === lastSavedContentRef.current && !isManual) {
+      console.log(`Content unchanged for ${docId}, skipping save`);
+      return;
+    }
+
+    isSavingRef.current = true;
     setStatus('saving');
     try {
       const res = await fetch('/api/document', {
@@ -32,16 +45,21 @@ export function useEditor(docId: string) {
         body: JSON.stringify({ content, id: docId }),
       });
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to save');
+      lastSavedContentRef.current = content;
+      console.log(`Successfully saved content for ${docId}:`, content);
       setStatus('saved');
       setTimeout(() => setStatus('idle'), isManual ? 3000 : 1500);
     } catch (err) {
       console.error('Save error:', err);
       setStatus('error');
+    } finally {
+      isSavingRef.current = false;
     }
   };
 
+  const saveToBackendDebounced = debounce(saveToBackend, 1000, { leading: false, trailing: true });
+
   const handleManualSave = () => {
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveToBackend(true);
   };
 
@@ -79,28 +97,57 @@ export function useEditor(docId: string) {
       });
     }
 
-    const binding = new QuillBinding(ytext, quillRef.current!);
+    bindingRef.current = new QuillBinding(ytext, quillRef.current!);
 
-    fetch(`/api/document/${docId}`)
+    // Load initial content
+    setStatus('saving');
+    fetch(`/api/document/${docId}?force=true`)
       .then((res) => (res.status === 404 ? { content: '' } : res.json()))
       .then((data: { content?: string }) => {
-        if (data.content && ytext.length === 0) {
-          ytext.insert(0, data.content);
+        const newContent = data.content || '';
+        console.log(`Loaded content for ${docId} from backend:`, newContent);
+        if (isInitialLoadRef.current) {
+          ytext.delete(0, ytext.length);
+          quillRef.current!.setText('');
+          ytext.insert(0, newContent);
+          quillRef.current!.setText(newContent);
+          lastSavedContentRef.current = newContent;
+          isInitialLoadRef.current = false;
+          providerRef.current!.connect();
         }
         setStatus('idle');
       })
       .catch((err) => {
         console.error(`Failed to load document ${docId}:`, err);
+        ytext.delete(0, ytext.length);
+        quillRef.current!.setText('');
         setStatus('error');
+        providerRef.current!.connect();
       });
 
     ytext.observe((event) => {
-      if (!event.transaction.local && quillRef.current) {
-        const textLength = quillRef.current.getLength();
-        quillRef.current.setSelection(textLength - 1, 0);
+      const ytextContent = ytext.toString();
+      const quillContent = quillRef.current!.getText().trim();
+      console.log(`Yjs update for ${docId} - Yjs: "${ytextContent}", Quill: "${quillContent}"`);
+
+      if (ytextContent !== quillContent) {
+        console.log(`Syncing Quill with Yjs for ${docId} - Applying: "${ytextContent}"`);
+        quillRef.current!.setText(ytextContent);
       }
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-      saveTimeoutRef.current = setTimeout(() => saveToBackend(), 1000);
+
+      // Only save if user has typed and it's a local change
+      if (!isInitialLoadRef.current && event.transaction.local) {
+        hasTypedRef.current = true; // Mark that user has typed
+        console.log(`Local Yjs update for ${docId} after typing`);
+        if (quillContent !== lastSavedContentRef.current) {
+          console.log(`Content changed locally for ${docId}, triggering debounced save`);
+          saveToBackendDebounced();
+        } else {
+          console.log(`Local content matches saved for ${docId}, skipping save`);
+        }
+      } else if (!isInitialLoadRef.current && !event.transaction.local) {
+        console.log(`Remote Yjs update for ${docId}, not saving`);
+      }
     });
 
     providerRef.current?.awareness.on('change', () => {
@@ -122,10 +169,14 @@ export function useEditor(docId: string) {
       console.log(`WebSocket for ${docId}: ${status}`);
     });
 
+    quillRef.current?.on('text-change', () => {
+      console.log(`Quill text changed for ${docId}:`, quillRef.current!.getText().trim());
+    });
+
     return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      saveToBackendDebounced.cancel();
       providerRef.current?.destroy();
-      binding.destroy();
+      bindingRef.current?.destroy();
       ydoc.destroy();
     };
   }, [docId]);
