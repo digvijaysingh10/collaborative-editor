@@ -68,79 +68,14 @@ export function useEditor(docId: string) {
     providerRef.current = createYjsProvider(ydoc, docId);
 
     if (editorRef.current && !quillRef.current) {
-      const Font = Quill.import('formats/font');
-      Font.whitelist = ['inter', 'roboto', 'open-sans', 'lora', 'sans-serif', ''];
-      Quill.register(Font, true);
-
       quillRef.current = new Quill(editorRef.current, {
         theme: 'snow',
         placeholder: 'Start typing here...',
         modules: {
-          toolbar: {
-            container: [
-              [{ header: [1, 2, 3, false] }],
-              ['#font-picker'],
-              ['bold', 'italic', 'underline', 'strike'],
-              [{ list: 'ordered' }, { list: 'bullet' }],
-              ['link'],
-              [{ align: [] }],
-              ['clean'],
-            ],
-            handlers: {
-              'font-picker': (value: string) => {
-                if (quillRef.current) {
-                  quillRef.current.format('font', value === '' ? false : value);
-                }
-              },
-              link: (value: string | boolean) => {
-                if (!quillRef.current) return;
-                const range = quillRef.current.getSelection(true);
-                if (range?.length === 0) {
-                  const index = range.index;
-                  const [leaf] = quillRef.current.getLeaf(index);
-                  const text = leaf.text || '';
-                  const offset = index - quillRef.current.getIndex(leaf);
-                  const { start, end } = getWordBounds(text, offset);
-                  if (end > start) quillRef.current.setSelection(index - offset + start, end - start);
-                }
-                if (value === true) {
-                  const tooltip = (quillRef.current.getModule('toolbar') as any).tooltip;
-                  tooltip?.edit('link');
-                } else if (typeof value === 'string') {
-                  quillRef.current.format('link', value);
-                } else {
-                  quillRef.current.format('link', false);
-                }
-              },
-            },
-          },
+          toolbar: [['bold', 'italic'], [{ list: 'ordered' }, { list: 'bullet' }], ['link']],
           cursors: { transformOnTextChange: true },
           history: { delay: 1000, maxStack: 100, userOnly: true },
         },
-      });
-
-      const toolbar = quillRef.current.getModule('toolbar');
-      const fontPicker = document.createElement('select');
-      fontPicker.id = 'font-picker';
-      fontPicker.className = 'ql-font-picker ql-picker';
-      const fonts = [
-        { value: '', label: 'Select Font' },
-        { value: 'inter', label: 'Inter' },
-        { value: 'roboto', label: 'Roboto' },
-        { value: 'open-sans', label: 'Open Sans' },
-        { value: 'lora', label: 'Lora' },
-        { value: 'sans-serif', label: 'Sans Serif' },
-      ];
-      fonts.forEach(({ value, label }) => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = label;
-        fontPicker.appendChild(option);
-      });
-      toolbar.container.appendChild(fontPicker);
-
-      fontPicker.addEventListener('change', () => {
-        toolbar.handlers['font-picker'](fontPicker.value);
       });
     }
 
@@ -149,15 +84,18 @@ export function useEditor(docId: string) {
     fetch(`/api/document/${docId}`)
       .then((res) => (res.status === 404 ? { content: '' } : res.json()))
       .then((data: { content?: string }) => {
-        if (data.content && ytext.length === 0) ytext.insert(0, data.content);
+        if (data.content && ytext.length === 0) {
+          ytext.insert(0, data.content);
+        }
         setStatus('idle');
       })
       .catch((err) => {
         console.error(`Failed to load document ${docId}:`, err);
-        if (err.message !== 'Failed to fetch') setStatus('error');
+        setStatus('error');
       });
 
     ytext.observe(() => {
+      // console.log('Yjs content updated:', ytext.toString());
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       saveTimeoutRef.current = setTimeout(() => saveToBackend(), 1000);
     });
@@ -177,6 +115,10 @@ export function useEditor(docId: string) {
       color: `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`,
     });
 
+    providerRef.current?.on('status', ({ status }) => {
+      console.log(`WebSocket for ${docId}: ${status}`);
+    });
+
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
       providerRef.current?.destroy();
@@ -186,13 +128,4 @@ export function useEditor(docId: string) {
   }, [docId]);
 
   return { editorRef, status, users, handleManualSave, saveAsWord, saveAsPDF };
-}
-
-function getWordBounds(text: string, offset: number): { start: number; end: number } {
-  const left = text.slice(0, offset).search(/\S+$/) || 0;
-  const right = text.slice(offset).search(/\s/);
-  return {
-    start: left,
-    end: right < 0 ? text.length : offset + right,
-  };
 }
